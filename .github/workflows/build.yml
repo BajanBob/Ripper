@@ -1,5 +1,8 @@
-name: Build Oistins
+name: Build executables
 
+# Builds Windows, macOS and Linux apps.
+# - Every push to main / manual run: downloadable from the run's "Artifacts".
+# - Pushing a tag like v1.0.0: also attached to a GitHub Release.
 on:
   push:
     branches: [main]
@@ -15,57 +18,50 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, target: windows, sep: ";" }
-          - { os: macos-latest, target: macos, sep: ":" }
-          - { os: ubuntu-latest, target: linux, sep: ":" }
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+          - os: ubuntu-latest
+            target: linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt scapy maxminddb pyinstaller
-      - name: Build
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build desktop app and command-line tool
         shell: bash
         run: |
-          pyinstaller --noconfirm --onefile --name Oistins \
-            --add-data "web${{ matrix.sep }}web" \
-            --hidden-import scapy.all --collect-submodules scapy oistins.py
+          pyinstaller --noconfirm --onefile --windowed --name VideoDownloader \
+            --collect-all imageio_ffmpeg --collect-all py7zr gui.py
+          pyinstaller --noconfirm --onefile --name vdl \
+            --collect-all imageio_ffmpeg --collect-all py7zr cli.py
+
       - name: Package
         shell: bash
         run: |
           cp README.md LICENSE dist/
           cd dist
-          if [ "${{ matrix.target }}" = "windows" ]; then 7z a ../Oistins-windows.zip .; else zip -r ../Oistins-${{ matrix.target }}.zip .; fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Oistins-${{ matrix.target }}
-          path: Oistins-${{ matrix.target }}.zip
-      - if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: Oistins-${{ matrix.target }}.zip
+          rm -rf *.spec
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            7z a ../VideoDownloader-windows.zip .
+          else
+            zip -r -y ../VideoDownloader-${{ matrix.target }}.zip .
+          fi
 
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.11.1"
-      - name: Build APK
-        run: gradle -p android assembleRelease --no-daemon --stacktrace
-      - run: cp android/app/build/outputs/apk/release/app-release.apk Oistins-android.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Oistins-android
-          path: Oistins-android.apk
-      - if: startsWith(github.ref, 'refs/tags/v')
+          name: VideoDownloader-${{ matrix.target }}
+          path: VideoDownloader-${{ matrix.target }}.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Oistins-android.apk
+          files: VideoDownloader-${{ matrix.target }}.zip
