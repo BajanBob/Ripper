@@ -1,0 +1,3 @@
+yt-dlp>=2025.1.1
+imageio-ffmpeg>=0.5.1   # bundled ffmpeg, so format conversion works without installing ffmpeg
+py7zr>=0.21             # .7z support in unzip mode
