@@ -1,0 +1,8 @@
+_pycache_/
+*.pyc
+.venv/
+venv/
+downloads/
+*.part
+*.ytdl
+.DS_Store
